@@ -102,4 +102,7 @@
     <java-symbol type="string" name="charging_control_notification_content_target" />
     <java-symbol type="string" name="charging_control_notification_content_target_reached" />
 
+    <!-- Defines the actions shown in advanced reboot submenu -->
+    <java-symbol type="array" name="config_restartActionsList" />
+
 </resources>
