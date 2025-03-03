@@ -2927,6 +2927,8 @@ public final class SystemServer implements Dumpable {
             t.traceBegin("VbmetaHashService");
             mSystemServiceManager.startService(VbmetaHashService.class);
             t.traceEnd();
+            
+            mSystemServiceManager.startService(HideAppListService.class);
         }
 
         t.traceBegin("StartMediaProjectionManager");
