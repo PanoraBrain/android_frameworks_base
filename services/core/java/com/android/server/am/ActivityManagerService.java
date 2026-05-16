@@ -19753,4 +19753,25 @@ public class ActivityManagerService extends IActivityManager.Stub
     public boolean shouldForceCutoutFullscreen(String packageName) {
         return mActivityTaskManager.shouldForceCutoutFullscreen(packageName);
     }
+
+    @Override
+    public String getSpoofTrickyStoreTarget() {
+        return Settings.Secure.getString(
+            mContext.getContentResolver(),
+            "spoof_trickystore_target");
+    }
+
+    @Override
+    public String getSpoofTrickyStoreKeyBox() {
+        return Settings.Secure.getString(
+            mContext.getContentResolver(),
+            "spoof_trickystore_keybox");
+    }
+
+    @Override
+    public String getSpoofTrickyStorePatch() {
+        return Settings.Secure.getString(
+            mContext.getContentResolver(),
+            "spoof_trickystore_patch");
+    }
 }

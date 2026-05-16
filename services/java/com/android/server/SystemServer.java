@@ -1455,6 +1455,16 @@ public final class SystemServer implements Dumpable {
         t.traceBegin("StartSensorService");
         mSystemServiceManager.startService(SensorService.class);
         t.traceEnd();
+
+        // Initialize TrickyStore boot hash extraction from TEE
+        t.traceBegin("InitTrickyStoreBootHash");
+        try {
+            android.security.trickystore.AttestationUtils.initBootHash();
+        } catch (Exception e) {
+            Slog.e(TAG, "Failed to initialize TrickyStore boot hash", e);
+        }
+        t.traceEnd();
+
         t.traceEnd(); // startBootstrapServices
     }
 

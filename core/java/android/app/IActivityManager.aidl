@@ -1050,4 +1050,25 @@ interface IActivityManager {
      *  Force full screen for devices with cutout
      */
     boolean shouldForceCutoutFullscreen(in String packageName);
+
+    /**
+     * Retrieves the TrickyStore target applications configuration.
+     * @return Target app configuration string, or null if not set
+     * @hide
+     */
+    String getSpoofTrickyStoreTarget();
+
+    /**
+     * Retrieves the TrickyStore keybox data.
+     * @return Keybox data string (XML or Base64), or null if not set
+     * @hide
+     */
+    String getSpoofTrickyStoreKeyBox();
+
+    /**
+     * Retrieves the TrickyStore security patch level override.
+     * @return Patch level configuration string, or null if not set
+     * @hide
+     */
+    String getSpoofTrickyStorePatch();
 }
