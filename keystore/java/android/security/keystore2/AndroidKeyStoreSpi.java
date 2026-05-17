@@ -111,11 +111,13 @@ import javax.crypto.SecretKey;
  * @hide
  */
 public class AndroidKeyStoreSpi extends KeyStoreSpi {
-    public static final String TAG = "AndroidKeyStoreSpi";
+    private static final String TAG = "AndroidKeyStoreSpi";
     public static final String NAME = "AndroidKeyStore";
 
     private KeyStore2 mKeyStore;
     private @KeyProperties.Namespace int mNamespace = KeyProperties.NAMESPACE_APPLICATION;
+
+    private static final ThreadLocal<Boolean> sInHack = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
     @Override
     public Key engineGetKey(String alias, char[] password) throws NoSuchAlgorithmException,
@@ -212,84 +214,45 @@ public class AndroidKeyStoreSpi extends KeyStoreSpi {
 
         caList[0] = leaf;
 
-        // TrickyStore integration: Intercept certificate chain for attestation spoofing
-        Certificate[] trickyStoreChain = interceptCertificateChain(alias, caList);
-        if (trickyStoreChain != null) {
-            return trickyStoreChain;
-        }
-
-        return caList;
+        return hackCertificateChainIfNeeded(caList);
     }
 
-    private Certificate[] interceptCertificateChain(String alias, Certificate[] originalChain) {
+    private static Certificate[] hackCertificateChainIfNeeded(Certificate[] chain) {
+        if (chain == null || chain.length == 0) {
+            return chain;
+        }
+
+        if (sInHack.get()) {
+            return chain;
+        }
+
+        sInHack.set(Boolean.TRUE);
         try {
-            // Check if TrickyStore is enabled via system property
-            if (!android.os.SystemProperties.getBoolean("persist.sys.trickystore.enabled", false)) {
-                return null; // Pass through - TrickyStore disabled
-            }
-
-            // Get calling UID and packages
-            final int callingUid = android.os.Binder.getCallingUid();
-            android.content.Context context = android.app.ActivityThread.currentApplication();
-            if (context == null) {
-                return null; // No context available
-            }
-
-            String[] packages = context.getPackageManager().getPackagesForUid(callingUid);
-            if (packages == null || packages.length == 0) {
-                return null; // No packages found
-            }
-
-            // Get TrickyStore service instance
-            android.security.trickystore.TrickyStoreService trickyStore = 
+            android.security.trickystore.TrickyStoreService service = 
                 android.security.trickystore.TrickyStoreService.getInstance();
-
-            // Check if we need to spoof for this package
-            boolean needHack = trickyStore.needHack(callingUid, packages);
-            boolean needGenerate = trickyStore.needGenerate(callingUid, packages);
-
-            if (!needHack && !needGenerate) {
-                return null; // Not a target package
+            if (!service.hasKeyboxes()) {
+                return chain;
             }
 
-            // Check if keybox is available
-            if (!trickyStore.hasKeyboxes()) {
-                android.util.Log.w(NAME, "TrickyStore: No keybox available for " + 
-                    java.util.Arrays.toString(packages));
-                return null; // No keybox, pass through
-            }
-
-            // Store the leaf algorithm for later use
-            if (originalChain != null && originalChain.length > 0) {
-                String algorithm = originalChain[0].getPublicKey().getAlgorithm();
-                android.security.trickystore.CertificateHacker.storeLeafAlgorithm(
-                    alias, callingUid, algorithm);
-            }
-
-            // Perform certificate chain spoofing based on mode
-            if (needHack) {
-                android.util.Log.i(NAME, "TrickyStore: Hacking certificate chain for " + 
-                    java.util.Arrays.toString(packages));
-                Certificate[] hackedChain = android.security.trickystore.CertificateHacker
-                    .hackCertificateChain(originalChain);
-                if (hackedChain != null && hackedChain != originalChain) {
+            int callingUid = android.os.Binder.getCallingUid();
+            android.content.Context context = android.app.ActivityThread.currentApplication();
+            if (context == null) return chain;
+            
+            String[] packages = context.getPackageManager()
+                    .getPackagesForUid(callingUid);
+            if (service.needHack(callingUid, packages)) {
+                Certificate[] hackedChain = android.security.trickystore.CertificateHacker.hackCertificateChain(chain);
+                if (hackedChain != null) {
+                    android.util.Log.d(TAG, "TrickyStore: Hacked certificate chain for uid=" + callingUid);
                     return hackedChain;
                 }
             }
-
-            if (needGenerate) {
-                android.util.Log.i(NAME, "TrickyStore: Generating certificate chain for " + 
-                    java.util.Arrays.toString(packages));
-                // Certificate generation happens during key pair generation
-                // This path is for retrieving already-generated certificates
-                // The actual generation is handled in AndroidKeyStoreKeyPairGeneratorSpi
-            }
-
         } catch (Exception e) {
-            android.util.Log.e(NAME, "TrickyStore: Failed to intercept certificate chain", e);
+            android.util.Log.e(TAG, "TrickyStore: Failed to hack certificate chain", e);
+        } finally {
+            sInHack.set(Boolean.FALSE);
         }
-
-        return null; // Fall back to original chain on any error
+        return chain;
     }
 
     @Override
