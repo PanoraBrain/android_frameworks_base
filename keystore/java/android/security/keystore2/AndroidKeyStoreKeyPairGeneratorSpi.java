@@ -1081,6 +1081,55 @@ public abstract class AndroidKeyStoreKeyPairGeneratorSpi extends KeyPairGenerato
         return params;
     }
 
+    private Collection<KeyParameter> constructKeyImportArguments()
+            throws InvalidAlgorithmParameterException {
+        List<KeyParameter> params = new ArrayList<>();
+        params.add(KeyStore2ParameterUtils.makeInt(KeymasterDefs.KM_TAG_KEY_SIZE, mKeySizeBits));
+        params.add(KeyStore2ParameterUtils.makeEnum(
+                KeymasterDefs.KM_TAG_ALGORITHM, mKeymasterAlgorithm
+        ));
+
+        if (mKeymasterAlgorithm == KeymasterDefs.KM_ALGORITHM_EC) {
+            params.add(KeyStore2ParameterUtils.makeEnum(
+                    Tag.EC_CURVE, keySizeAndNameToEcCurve(mKeySizeBits, mEcCurveName)
+            ));
+        }
+
+        ArrayUtils.forEach(mKeymasterPurposes, (purpose) -> {
+            params.add(KeyStore2ParameterUtils.makeEnum(
+                    KeymasterDefs.KM_TAG_PURPOSE, purpose
+            ));
+        });
+        ArrayUtils.forEach(mKeymasterBlockModes, (blockMode) -> {
+            params.add(KeyStore2ParameterUtils.makeEnum(
+                    KeymasterDefs.KM_TAG_BLOCK_MODE, blockMode
+            ));
+        });
+        ArrayUtils.forEach(mKeymasterEncryptionPaddings, (padding) -> {
+            params.add(KeyStore2ParameterUtils.makeEnum(
+                    KeymasterDefs.KM_TAG_PADDING, padding
+            ));
+        });
+        ArrayUtils.forEach(mKeymasterSignaturePaddings, (padding) -> {
+            params.add(KeyStore2ParameterUtils.makeEnum(
+                    KeymasterDefs.KM_TAG_PADDING, padding
+            ));
+        });
+        ArrayUtils.forEach(mKeymasterDigests, (digest) -> {
+            params.add(KeyStore2ParameterUtils.makeEnum(
+                    KeymasterDefs.KM_TAG_DIGEST, digest
+            ));
+        });
+
+        KeyStore2ParameterUtils.addUserAuthArgs(params, mSpec);
+
+        addAlgorithmSpecificParameters(params);
+
+        params.add(KeyStore2ParameterUtils.makeBool(KeymasterDefs.KM_TAG_NO_AUTH_REQUIRED));
+
+        return params;
+    }
+
     private static boolean getMgf1DigestSetterFlag() {
         try {
             return Flags.mgf1DigestSetterV2();
